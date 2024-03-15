@@ -1165,7 +1165,7 @@ class eca_layer(nn.Module):
         # Multi-scale information fusion
         y = self.relu(y)
 
-        return x * y.expand_as(x)
+        return x * y
 
 class BN2d(nn.Module):
     def __init__(self, planes):
