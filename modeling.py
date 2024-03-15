@@ -1108,6 +1108,33 @@ class SAMS(nn.Module):
 #         y = self.fc(y).view(b, c, 1, 1)
 #         return  y
     
+# class eca_layer(nn.Module):
+#     """Constructs a ECA module.
+
+#     Args:
+#         channel: Number of channels of the input feature map
+#         k_size: Adaptive selection of kernel size
+#     """
+#     def __init__(self, channel, gamma=3, beta= 1):
+#         super(eca_layer, self).__init__()
+#         t = int(abs(math.log(channel, 2)+beta) / gamma)
+#         k_size = t if t%2 else t+1
+#         self.avg_pool = nn.AdaptiveAvgPool2d(1)
+#         self.conv = nn.Conv1d(1, 1, kernel_size=k_size, padding=(k_size - 1) // 2, bias=False) 
+#         self.sigmoid = nn.Sigmoid()
+
+#     def forward(self, x):
+#         # feature descriptor on the global spatial information
+#         y = self.avg_pool(x)
+
+#         # Two different branches of ECA module
+#         y = self.conv(y.squeeze(-1).transpose(-1, -2)).transpose(-1, -2).unsqueeze(-1)
+
+#         # Multi-scale information fusion
+#         y = self.sigmoid(y)
+
+#         return x * y.expand_as(x)
+    
 class eca_layer(nn.Module):
     """Constructs a ECA module.
 
@@ -1120,18 +1147,23 @@ class eca_layer(nn.Module):
         t = int(abs(math.log(channel, 2)+beta) / gamma)
         k_size = t if t%2 else t+1
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
-        self.conv = nn.Conv1d(1, 1, kernel_size=k_size, padding=(k_size - 1) // 2, bias=False) 
-        self.sigmoid = nn.Sigmoid()
+        self.max_pool = nn.AdaptiveMaxPool2d(1)
+        self.conv_avg = nn.Conv1d(1, 1, kernel_size=k_size, padding=(k_size - 1) // 2, bias=False) 
+        self.conv_max = nn.Conv1d(1, 1, kernel_size=k_size, padding=(k_size - 1) // 2, bias=False) 
+        self.conv = nn.Conv1d(in_channels=channel * 2, out_channels= channel, kernel_size=1,bias=False) 
+        self.relu = nn.ReLU()
 
     def forward(self, x):
         # feature descriptor on the global spatial information
-        y = self.avg_pool(x)
-
+        y1 = self.avg_pool(x)
+        y2 = self.max_pool(x)
         # Two different branches of ECA module
-        y = self.conv(y.squeeze(-1).transpose(-1, -2)).transpose(-1, -2).unsqueeze(-1)
-
+        y1 = self.conv_avg(y1.squeeze(-1).transpose(-1, -2)).transpose(-1, -2).unsqueeze(-1)
+        y2 = self.conv_max(y2.squeeze(-1).transpose(-1, -2)).transpose(-1, -2).unsqueeze(-1)
+        y = torch.cat((y1, y2), dim= 0)
+        y = self.conv(y.transpose(-2, -3)).transpose(0, 1)
         # Multi-scale information fusion
-        y = self.sigmoid(y)
+        y = self.relu(y)
 
         return x * y.expand_as(x)
 
