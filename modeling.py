@@ -1161,7 +1161,7 @@ class eca_layer(nn.Module):
         y1 = self.conv_avg(y1.squeeze(-1).transpose(-1, -2)).transpose(-1, -2).unsqueeze(-1)
         y2 = self.conv_max(y2.squeeze(-1).transpose(-1, -2)).transpose(-1, -2).unsqueeze(-1)
         y = torch.cat((y1, y2), dim= -3)
-        y = self.conv(y.transpose(-2, -3)).transpose(-3, -2)
+        y = self.conv(y.squeeze(-1))
         # Multi-scale information fusion
         y = self.relu(y)
 
