@@ -1199,6 +1199,16 @@ class EMA(nn.Module):
         x22 = x1.reshape(b * self.groups, c // self.groups, -1)  # b*g, c//g, hw
         weights = (torch.matmul(x11, x12) + torch.matmul(x21, x22)).reshape(b * self.groups, 1, h, w)
         return (group_x * weights.sigmoid()).reshape(b, c, h, w)
+    
+class GATE(nn.Module):
+    def __init__(self, channel, alpha= 0.5):
+        super().__init__()
+        self.eca = ECA(channel)
+        self.ema = EMA(channel)
+        self.alpha = alpha
+    def forward(self, x):
+        return self.alpha * ECA(x) + (1 - self.alpha) * EMA(x)
+    
 
 class BN2d(nn.Module):
     def __init__(self, planes):
@@ -1236,16 +1246,21 @@ class Baseline(nn.Module):
             # self.att3 = SELayer(512,64)
             # self.att4 = SELayer(1024,128)
             # self.att5 = SELayer(2048,256)
-            self.att1 = ECA(64)
-            self.att2 = ECA(256)
-            self.att3 = ECA(512)
-            self.att4 = ECA(1024)
-            self.att5 = ECA(2048)
+            # self.att1 = ECA(64)
+            # self.att2 = ECA(256)
+            # self.att3 = ECA(512)
+            # self.att4 = ECA(1024)
+            # self.att5 = ECA(2048)
             # self.att1 = EMA(64)
             # self.att2 = EMA(256)
             # self.att3 = EMA(512)
             # self.att4 = EMA(1024)
             # self.att5 = EMA(2048)
+            self.att1 = GATE(64)
+            self.att2 = GATE(256)
+            self.att3 = GATE(512)
+            self.att4 = GATE(1024)
+            self.att5 = GATE(2048)
             if self.level > 1: # second pyramid level
                 self.att_s1=SAMS(64,int(64/self.level),radix=self.level)
                 self.att_s2=SAMS(256,int(256/self.level),radix=self.level)
