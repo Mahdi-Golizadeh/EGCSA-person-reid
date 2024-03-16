@@ -1214,15 +1214,13 @@ class GATE(nn.Module):
         super(GATE, self).__init__()
         self.eca = ECA(channel, gamma= 3, beta= 1)
         self.ema = EMA(channel, factor= 32)
-        self.elu1 = nn.Sigmoid()
-        self.elu2 = nn.Sigmoid()
-        self.relu = nn.ReLU()
+        self.conv = nn.Conv2d(in_channels=channel * 2, out_channels=channel, kernel_size=3, padding=1)
+        self.sig = nn.Sigmoid()
     def forward(self, x):
-        a = self.elu1(self.ema(x))
-        b = self.eca(x)
-        b = self.elu2(b)
-        c = a * self.eca(x) + b * self.ema(x)
-        return self.relu(c)
+        x = torch.cat((self.eca(x), self.ema(x)), dim= -3)
+        x = self.conv(x)
+        x = self.sig(x)
+        return x * self.eca(x) + (1-x) * self.ema(x)
     
 
 class BN2d(nn.Module):
