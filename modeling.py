@@ -1220,7 +1220,7 @@ class GATE(nn.Module):
         x1 = torch.cat((self.eca(x), self.ema(x)), dim= -3)
         x1 = self.conv(x1)
         x1 = self.sig(x1)
-        return x1 * self.eca(x) + (1-x1) * self.ema(x)
+        return .9 * self.eca(x) + 0.1 * self.ema(x)
     
 
 class BN2d(nn.Module):
