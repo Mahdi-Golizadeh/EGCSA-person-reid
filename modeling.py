@@ -1218,7 +1218,11 @@ class GATE(nn.Module):
         self.elu2 = nn.ELU()
         self.relu = nn.ReLU()
     def forward(self, x):
-        return self.relu(self.elu1(self.ema(x)) * self.eca(x) + self.elu2(self.eca(x)) * self.ema(x))
+        a = self.elu1(self.ema(x))
+        b = self.eca(x)
+        b = self.elu2(b)
+        c = a * self.eca(x) + b * self.ema(x)
+        return self.relu(c)
     
 
 class BN2d(nn.Module):
