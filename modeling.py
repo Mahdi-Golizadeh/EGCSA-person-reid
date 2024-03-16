@@ -1291,7 +1291,7 @@ class Baseline(nn.Module):
             x = self.BN1(x)
         if self.level > 0:
             y = self.att1(x)
-            x=x*y.expand_as(x)
+            x=x+y.expand_as(x)
 
 
         x = self.base_2(x)
@@ -1303,7 +1303,7 @@ class Baseline(nn.Module):
             x = self.BN2(x)
         if self.level > 0:
             y = self.att2(x)
-            x=x*y.expand_as(x)
+            x=x+y.expand_as(x)
 
 
         x = self.base_3(x)
@@ -1315,7 +1315,7 @@ class Baseline(nn.Module):
             x = self.BN3(x)
         if self.level > 0:
             y = self.att3(x)
-            x=x*y.expand_as(x)
+            x=x+y.expand_as(x)
 
         x = self.base_4(x)
         if self.level > 2:
@@ -1326,7 +1326,7 @@ class Baseline(nn.Module):
             x = self.BN4(x)
         if self.level > 0:
             y = self.att4(x)
-            x=x*y.expand_as(x)
+            x=x+y.expand_as(x)
 
 
         x = self.base_5(x)
@@ -1338,7 +1338,7 @@ class Baseline(nn.Module):
             x = self.BN5(x)
         if self.level > 0:
             y = self.att5(x)
-            x=x*y.expand_as(x)
+            x=x+y.expand_as(x)
 
 
         global_feat = self.gap(x)  # (b, 2048, 1, 1)
