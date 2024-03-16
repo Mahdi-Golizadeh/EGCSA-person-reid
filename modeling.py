@@ -1152,6 +1152,8 @@ class ECA(nn.Module):
         self.conv_max = nn.Conv1d(1, 1, kernel_size=k_size, padding=(k_size - 1) // 2, bias=False) 
         self.conv = nn.Conv1d(in_channels=channel * 2, out_channels= channel, kernel_size=1,bias=False) 
         self.relu = nn.ReLU()
+        self.sig1 = nn.Sigmoid()
+        self.sig2 = nn.Sigmoid()
 
     def forward(self, x):
         # feature descriptor on the global spatial information
@@ -1159,7 +1161,9 @@ class ECA(nn.Module):
         y2 = self.max_pool(x)
         # Two different branches of ECA module
         y1 = self.conv_avg(y1.squeeze(-1).transpose(-1, -2)).transpose(-1, -2).unsqueeze(-1)
+        y1 = self.sig1(y1)
         y2 = self.conv_max(y2.squeeze(-1).transpose(-1, -2)).transpose(-1, -2).unsqueeze(-1)
+        y2 = self.sig2(y2)
         y = torch.cat((y1, y2), dim= -3)
         y = self.conv(y.squeeze(-1)).unsqueeze(-1)
         # Multi-scale information fusion
