@@ -1200,14 +1200,25 @@ class EMA(nn.Module):
         weights = (torch.matmul(x11, x12) + torch.matmul(x21, x22)).reshape(b * self.groups, 1, h, w)
         return (group_x * weights.sigmoid()).reshape(b, c, h, w)
     
+# class GATE(nn.Module):
+#     def __init__(self, channel, alpha= 0.5):
+#         super(GATE, self).__init__()
+#         self.eca = ECA(channel, gamma= 3, beta= 1)
+#         self.ema = EMA(channel, factor= 32)
+#         self.alpha = alpha
+#     def forward(self, x):
+#         return self.alpha * self.eca(x) + (1 - self.alpha) * self.ema(x)
+    
 class GATE(nn.Module):
     def __init__(self, channel, alpha= 0.5):
         super(GATE, self).__init__()
         self.eca = ECA(channel, gamma= 3, beta= 1)
         self.ema = EMA(channel, factor= 32)
-        self.alpha = alpha
+        self.elu1 = nn.ELU()
+        self.elu2 = nn.ELU()
+        self.relu = nn.ReLU()
     def forward(self, x):
-        return self.alpha * self.eca(x) + (1 - self.alpha) * self.ema(x)
+        return self.relu(self.elu1(self.ema(x)) * self.eca(x) + self.elu2(self.eca(x)) * self.ema(x))
     
 
 class BN2d(nn.Module):
