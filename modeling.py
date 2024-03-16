@@ -1214,8 +1214,8 @@ class GATE(nn.Module):
         super(GATE, self).__init__()
         self.eca = ECA(channel, gamma= 3, beta= 1)
         self.ema = EMA(channel, factor= 32)
-        self.elu1 = nn.ELU()
-        self.elu2 = nn.ELU()
+        self.elu1 = nn.Sigmoid()
+        self.elu2 = nn.Sigmoid()
         self.relu = nn.ReLU()
     def forward(self, x):
         a = self.elu1(self.ema(x))
