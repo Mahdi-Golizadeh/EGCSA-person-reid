@@ -1207,7 +1207,7 @@ class GATE(nn.Module):
         self.ema = EMA(channel, factor= 32)
         self.alpha = alpha
     def forward(self, x):
-        return self.alpha * ECA(x) + (1 - self.alpha) * EMA(x)
+        return self.alpha * self.eca(x) + (1 - self.alpha) * self.ema(x)
     
 
 class BN2d(nn.Module):
