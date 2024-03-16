@@ -1135,7 +1135,7 @@ class SAMS(nn.Module):
 
 #         return x * y.expand_as(x)
     
-class eca_layer(nn.Module):
+class ECA(nn.Module):
     """Constructs a ECA module.
 
     Args:
@@ -1143,7 +1143,7 @@ class eca_layer(nn.Module):
         k_size: Adaptive selection of kernel size
     """
     def __init__(self, channel, gamma=3, beta= 1):
-        super(eca_layer, self).__init__()
+        super(ECA, self).__init__()
         t = int(abs(math.log(channel, 2)+beta) / gamma)
         k_size = t if t%2 else t+1
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
@@ -1166,6 +1166,35 @@ class eca_layer(nn.Module):
         y = self.relu(y)
 
         return x * y
+    
+class EMA(nn.Module):
+    def __init__(self, channels, factor=32):
+        super(EMA, self).__init__()
+        self.groups = factor
+        assert channels // self.groups > 0
+        self.softmax = nn.Softmax(-1)
+        self.agp = nn.AdaptiveAvgPool2d((1, 1))
+        self.pool_h = nn.AdaptiveAvgPool2d((None, 1))
+        self.pool_w = nn.AdaptiveAvgPool2d((1, None))
+        self.gn = nn.GroupNorm(channels // self.groups, channels // self.groups)
+        self.conv1x1 = nn.Conv2d(channels // self.groups, channels // self.groups, kernel_size=1, stride=1, padding=0)
+        self.conv3x3 = nn.Conv2d(channels // self.groups, channels // self.groups, kernel_size=3, stride=1, padding=1)
+
+    def forward(self, x):
+        b, c, h, w = x.size()
+        group_x = x.reshape(b * self.groups, -1, h, w)  # b*g,c//g,h,w
+        x_h = self.pool_h(group_x)
+        x_w = self.pool_w(group_x).permute(0, 1, 3, 2)
+        hw = self.conv1x1(torch.cat([x_h, x_w], dim=2))
+        x_h, x_w = torch.split(hw, [h, w], dim=2)
+        x1 = self.gn(group_x * x_h.sigmoid() * x_w.permute(0, 1, 3, 2).sigmoid())
+        x2 = self.conv3x3(group_x)
+        x11 = self.softmax(self.agp(x1).reshape(b * self.groups, -1, 1).permute(0, 2, 1))
+        x12 = x2.reshape(b * self.groups, c // self.groups, -1)  # b*g, c//g, hw
+        x21 = self.softmax(self.agp(x2).reshape(b * self.groups, -1, 1).permute(0, 2, 1))
+        x22 = x1.reshape(b * self.groups, c // self.groups, -1)  # b*g, c//g, hw
+        weights = (torch.matmul(x11, x12) + torch.matmul(x21, x22)).reshape(b * self.groups, 1, h, w)
+        return (group_x * weights.sigmoid()).reshape(b, c, h, w)
 
 class BN2d(nn.Module):
     def __init__(self, planes):
@@ -1203,11 +1232,16 @@ class Baseline(nn.Module):
             # self.att3 = SELayer(512,64)
             # self.att4 = SELayer(1024,128)
             # self.att5 = SELayer(2048,256)
-            self.att1 = eca_layer(64)
-            self.att2 = eca_layer(256)
-            self.att3 = eca_layer(512)
-            self.att4 = eca_layer(1024)
-            self.att5 = eca_layer(2048)
+            # self.att1 = ECA(64)
+            # self.att2 = ECA(256)
+            # self.att3 = ECA(512)
+            # self.att4 = ECA(1024)
+            # self.att5 = ECA(2048)
+            self.att1 = EMA(64)
+            self.att2 = EMA(256)
+            self.att3 = EMA(512)
+            self.att4 = EMA(1024)
+            self.att5 = EMA(2048)
             if self.level > 1: # second pyramid level
                 self.att_s1=SAMS(64,int(64/self.level),radix=self.level)
                 self.att_s2=SAMS(256,int(256/self.level),radix=self.level)
