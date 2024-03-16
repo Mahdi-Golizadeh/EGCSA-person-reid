@@ -1217,10 +1217,10 @@ class GATE(nn.Module):
         self.conv = nn.Conv2d(in_channels=channel * 2, out_channels=channel, kernel_size=3, padding=1)
         self.sig = nn.Sigmoid()
     def forward(self, x):
-        x = torch.cat((self.eca(x), self.ema(x)), dim= -3)
-        x = self.conv(x)
-        x = self.sig(x)
-        return x * self.eca(x) + (1-x) * self.ema(x)
+        x1 = torch.cat((self.eca(x), self.ema(x)), dim= -3)
+        x1 = self.conv(x1)
+        x1 = self.sig(x1)
+        return x1 * self.eca(x) + (1-x1) * self.ema(x)
     
 
 class BN2d(nn.Module):
