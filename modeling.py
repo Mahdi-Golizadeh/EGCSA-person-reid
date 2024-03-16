@@ -1202,7 +1202,7 @@ class EMA(nn.Module):
     
 class GATE(nn.Module):
     def __init__(self, channel, alpha= 0.5):
-        super().__init__()
+        super(GATE, self).__init__()
         self.eca = ECA(channel, gamma= 3, beta= 1)
         self.ema = EMA(channel, factor= 32)
         self.alpha = alpha
