@@ -1229,8 +1229,9 @@ class GMAT(torch.nn.Module):
         self.max_ch = torch.nn.AdaptiveMaxPool2d((1, 1))
         self.avg_sp = torch.nn.AdaptiveAvgPool1d(1)
         self.max_sp = torch.nn.AdaptiveMaxPool1d(1)
+        self.elu = torch.nn.ELU()
         self.sig = torch.nn.Sigmoid()
-        
+        self.bn = torch.nn.BatchNorm2d(channel)
     def forward(self, x):
         b, c, h, w = x.size()
         av1 = self.avg_ch(x)
@@ -1239,13 +1240,15 @@ class GMAT(torch.nn.Module):
         msp = self.max_sp(x.permute(-4, -1, -2, -3).reshape(b, h*w, -1))
         ch = torch.cat([av1, mx1], dim= -3)
         sp = torch.cat([asp, msp], dim= -2)
-        conv1 = torch.nn.Conv1d(c * 2, c, kernel_size= 1)
+        conv1 = torch.nn.Conv1d(c * 2, c, kernel_size= 1, device= MODEL_DEVICE)
         conv1 = conv1(ch.squeeze(-1))
-        conv2 = torch.nn.Conv1d(h * w * 2, h * w , kernel_size= 1)
+        conv2 = torch.nn.Conv1d(h * w * 2, h * w , kernel_size= 1, device= MODEL_DEVICE)
         conv2 = conv2(sp).reshape(b, -1, h, w)
-        sig_ch = self.sig(conv1)
-        sig_sp = self.sig(conv2)
-        return (sig_ch.unsqueeze(-1) * x) + sig_sp * x 
+        elu_ch = self.elu(conv1)
+        elu_sp = self.elu(conv2)
+        conv2d = torch.nn.Conv2d(c, c, kernel_size= 1, device= MODEL_DEVICE)
+        bn = self.bn(conv2d((elu_ch.unsqueeze(-1) * x) + elu_sp * x))
+        return self.sig(bn) * x
 
 class BN2d(nn.Module):
     def __init__(self, planes):
@@ -1288,6 +1291,7 @@ class Baseline(nn.Module):
             # self.att3 = ECA(512)
             # self.att4 = ECA(1024)
             # self.att5 = ECA(2048)
+<<<<<<< HEAD
             # self.att1 = EMA(64)
             # self.att2 = EMA(256)
             # self.att3 = EMA(512)
@@ -1298,6 +1302,18 @@ class Baseline(nn.Module):
             self.att3 = GMAT(512)
             self.att4 = GMAT(1024)
             self.att5 = GMAT(2048)
+=======
+            self.att1 = EMA(64)
+            self.att2 = EMA(256)
+            self.att3 = EMA(512)
+            self.att4 = EMA(1024)
+            self.att5 = EMA(2048)
+            #self.att1 = GATE(64)
+            #self.att2 = GATE(256)
+            # self.att3 = GATE(512)
+            # self.att4 = GATE(1024)
+            # self.att5 = GATE(2048)
+>>>>>>> e1574b927d4cbc7ca26ccdd5c2a334e4de012a2a
             if self.level > 1: # second pyramid level
                 self.att_s1=SAMS(64,int(64/self.level),radix=self.level)
                 self.att_s2=SAMS(256,int(256/self.level),radix=self.level)
