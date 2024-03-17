@@ -1291,7 +1291,6 @@ class Baseline(nn.Module):
             # self.att3 = ECA(512)
             # self.att4 = ECA(1024)
             # self.att5 = ECA(2048)
-<<<<<<< HEAD
             # self.att1 = EMA(64)
             # self.att2 = EMA(256)
             # self.att3 = EMA(512)
@@ -1302,18 +1301,6 @@ class Baseline(nn.Module):
             self.att3 = GMAT(512)
             self.att4 = GMAT(1024)
             self.att5 = GMAT(2048)
-=======
-            self.att1 = EMA(64)
-            self.att2 = EMA(256)
-            self.att3 = EMA(512)
-            self.att4 = EMA(1024)
-            self.att5 = EMA(2048)
-            #self.att1 = GATE(64)
-            #self.att2 = GATE(256)
-            # self.att3 = GATE(512)
-            # self.att4 = GATE(1024)
-            # self.att5 = GATE(2048)
->>>>>>> e1574b927d4cbc7ca26ccdd5c2a334e4de012a2a
             if self.level > 1: # second pyramid level
                 self.att_s1=SAMS(64,int(64/self.level),radix=self.level)
                 self.att_s2=SAMS(256,int(256/self.level),radix=self.level)
