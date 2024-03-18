@@ -665,6 +665,8 @@ class GMAT(torch.nn.Module):
         x22 = self.max_sp(x.permute(-4, -1, -2, -3).reshape(b, h*w, -1))
         x11 = torch.cat([x11, x12], dim= -3)
         x21 = torch.cat([x21, x22], dim= -2)
+        del x12
+        del x22
         conv1 = torch.nn.Conv1d(c * 2, c, kernel_size= 1, device= MODEL_DEVICE)
         x11 = conv1(x11.squeeze(-1))
         conv2 = torch.nn.Conv1d(h * w * 2, h * w , kernel_size= 1, device= MODEL_DEVICE)
@@ -673,11 +675,11 @@ class GMAT(torch.nn.Module):
         x21 = self.elu(x21)
         x11 = x11.unsqueeze(-1) * x + x21 * x
         conv1d_c = torch.nn.Conv1d(in_channels= c, out_channels= c, kernel_size=1, device= MODEL_DEVICE)
-        x12 = conv1d_c(x11.permute(-4, -2, -1, -3).reshape(-1, c, h * w))
-        x12 = x12.view(b, c, h, w)
+        x11 = conv1d_c(x11.permute(-4, -2, -1, -3).reshape(-1, c, h * w))
+        x11 = x11.view(b, c, h, w)
         conv1d_hw = torch.nn.Conv1d(in_channels= h * w, out_channels=h * w, kernel_size=1, device= MODEL_DEVICE)
-        x22 = conv1d_hw(x21.permute(-4, -1, -2, -3).reshape(-1, h * w, 1)).permute(0, 2, 1).reshape(b, 1, h, w)
-        bn = self.bn(self.elu(x12) * x + self.elu(x22) * x)
+        x21 = conv1d_hw(x21.permute(-4, -1, -2, -3).reshape(-1, h * w, 1)).permute(0, 2, 1).reshape(b, 1, h, w)
+        bn = self.bn(self.elu(x11) * x + self.elu(x21) * x)
         return self.sig(bn) * x
 
 class BN2d(nn.Module):
