@@ -7,10 +7,6 @@
 ##+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 """ResNeSt models"""
 
-# from .utils import drop_connect
-
-"""Split-Attention"""
-
 from configs import *
 import torch
 import sys
@@ -25,390 +21,6 @@ import torch.nn.functional as F
 import torch.utils.model_zoo as model_zoo
 import math
 sys.path.append('.')
-
-
-# class SELayer(nn.Module):
-#     def __init__(self, channel, reduction=16):
-#         super(SELayer, self).__init__()
-#         self.avg_pool = nn.AdaptiveAvgPool2d(1)
-#         self.fc = nn.Sequential(
-#             nn.Linear(channel, channel // reduction, bias=False),
-#             nn.ReLU(inplace=True),
-#             nn.Linear(channel // reduction, channel, bias=False),
-#             nn.Sigmoid()
-#         )
-
-#     def forward(self, x):
-#         b, c, _, _ = x.size()
-#         y = self.avg_pool(x).view(b, c)
-#         y = self.fc(y).view(b, c, 1, 1)
-#         return x * y.expand_as(x)
-    
-__all__ = ['Inception3', 'inception_v3']
-
-
-model_urls = {
-    # Inception v3 ported from TensorFlow
-    'inception_v3_google': 'https://download.pytorch.org/models/inception_v3_google-1a9a5a14.pth',
-}
-
-
-def inception_v3(pretrained=False, **kwargs):
-    r"""Inception v3 model architecture from
-    `"Rethinking the Inception Architecture for Computer Vision" <http://arxiv.org/abs/1512.00567>`_.
-
-    Args:
-        pretrained (bool): If True, returns a model pre-trained on ImageNet
-    """
-    if pretrained:
-        if 'transform_input' not in kwargs:
-            kwargs['transform_input'] = True
-        model = Inception3(**kwargs)
-        model.load_state_dict(model_zoo.load_url(model_urls['inception_v3_google']))
-        return model
-
-    return Inception3(**kwargs)
-
-
-class Inception3(nn.Module):
-
-    def __init__(self, num_classes=1000, aux_logits=True, transform_input=False):
-        super(Inception3, self).__init__()
-        self.aux_logits = aux_logits
-        self.transform_input = transform_input
-        self.Conv2d_1a_3x3 = BasicConv2d(3, 32, kernel_size=3, stride=2)
-        self.Conv2d_2a_3x3 = BasicConv2d(32, 32, kernel_size=3)
-        self.Conv2d_2b_3x3 = BasicConv2d(32, 64, kernel_size=3, padding=1)
-        self.Conv2d_3b_1x1 = BasicConv2d(64, 80, kernel_size=1)
-        self.Conv2d_4a_3x3 = BasicConv2d(80, 192, kernel_size=3)
-        self.Mixed_5b = InceptionA(192, pool_features=32)
-        self.Mixed_5c = InceptionA(256, pool_features=64)
-        self.Mixed_5d = InceptionA(288, pool_features=64)
-        self.Mixed_6a = InceptionB(288)
-        self.Mixed_6b = InceptionC(768, channels_7x7=128)
-        self.Mixed_6c = InceptionC(768, channels_7x7=160)
-        self.Mixed_6d = InceptionC(768, channels_7x7=160)
-        self.Mixed_6e = InceptionC(768, channels_7x7=192)
-        if aux_logits:
-            self.AuxLogits = InceptionAux(768, num_classes)
-        self.Mixed_7a = InceptionD(768)
-        self.Mixed_7b = InceptionE(1280)
-        self.Mixed_7c = InceptionE(2048)
-        self.fc = nn.Linear(2048, num_classes)
-
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
-                import scipy.stats as stats
-                stddev = m.stddev if hasattr(m, 'stddev') else 0.1
-                X = stats.truncnorm(-2, 2, scale=stddev)
-                values = torch.Tensor(X.rvs(m.weight.data.numel()))
-                values = values.view(m.weight.data.size())
-                m.weight.data.copy_(values)
-            elif isinstance(m, nn.BatchNorm2d):
-                m.weight.data.fill_(1)
-                m.bias.data.zero_()
-
-    def forward(self, x):
-        if self.transform_input:
-            x = x.clone()
-            x[:, 0] = x[:, 0] * (0.229 / 0.5) + (0.485 - 0.5) / 0.5
-            x[:, 1] = x[:, 1] * (0.224 / 0.5) + (0.456 - 0.5) / 0.5
-            x[:, 2] = x[:, 2] * (0.225 / 0.5) + (0.406 - 0.5) / 0.5
-        # 299 x 299 x 3
-        x = self.Conv2d_1a_3x3(x)
-        # 149 x 149 x 32
-        x = self.Conv2d_2a_3x3(x)
-        # 147 x 147 x 32
-        x = self.Conv2d_2b_3x3(x)
-        # 147 x 147 x 64
-        x = F.max_pool2d(x, kernel_size=3, stride=2)
-        # 73 x 73 x 64
-        x = self.Conv2d_3b_1x1(x)
-        # 73 x 73 x 80
-        x = self.Conv2d_4a_3x3(x)
-        # 71 x 71 x 192
-        x = F.max_pool2d(x, kernel_size=3, stride=2)
-        # 35 x 35 x 192
-        x = self.Mixed_5b(x)
-        # 35 x 35 x 256
-        x = self.Mixed_5c(x)
-        # 35 x 35 x 288
-        x = self.Mixed_5d(x)
-        # 35 x 35 x 288
-        x = self.Mixed_6a(x)
-        # 17 x 17 x 768
-        x = self.Mixed_6b(x)
-        # 17 x 17 x 768
-        x = self.Mixed_6c(x)
-        # 17 x 17 x 768
-        x = self.Mixed_6d(x)
-        # 17 x 17 x 768
-        x = self.Mixed_6e(x)
-        # 17 x 17 x 768
-        if self.training and self.aux_logits:
-            aux = self.AuxLogits(x)
-        # 17 x 17 x 768
-        x = self.Mixed_7a(x)
-        # 8 x 8 x 1280
-        x = self.Mixed_7b(x)
-        # 8 x 8 x 2048
-        x = self.Mixed_7c(x)
-        # 8 x 8 x 2048
-        x = F.avg_pool2d(x, kernel_size=8)
-        # 1 x 1 x 2048
-        x = F.dropout(x, training=self.training)
-        # 1 x 1 x 2048
-        x = x.view(x.size(0), -1)
-        # 2048
-        x = self.fc(x)
-        # 1000 (num_classes)
-        if self.training and self.aux_logits:
-            return x, aux
-        return x
-
-    def get_features_mixed_6e(self):
-        return nn.Sequential(
-            self.Conv2d_1a_3x3,
-            self.Conv2d_2a_3x3,
-            self.Conv2d_2b_3x3,
-            nn.MaxPool2d(kernel_size=3, stride=2),
-            self.Conv2d_3b_1x1,
-            self.Conv2d_4a_3x3,
-            nn.MaxPool2d(kernel_size=3, stride=2),
-            self.Mixed_5b,
-            self.Mixed_5c,
-            self.Mixed_5d,
-            self.Mixed_6a,
-            self.Mixed_6b,
-            self.Mixed_6c,
-            self.Mixed_6d,
-            self.Mixed_6e,
-        )
-
-    def get_features_mixed_7c(self):
-        return nn.Sequential(
-            self.Conv2d_1a_3x3,
-            self.Conv2d_2a_3x3,
-            self.Conv2d_2b_3x3,
-            nn.MaxPool2d(kernel_size=3, stride=2),
-            self.Conv2d_3b_1x1,
-            self.Conv2d_4a_3x3,
-            nn.MaxPool2d(kernel_size=3, stride=2),
-            self.Mixed_5b,
-            self.Mixed_5c,
-            self.Mixed_5d,
-            self.Mixed_6a,
-            self.Mixed_6b,
-            self.Mixed_6c,
-            self.Mixed_6d,
-            self.Mixed_6e,
-            self.Mixed_7a,
-            self.Mixed_7b,
-            self.Mixed_7c,
-        )
-
-    def load_state_dict(self, state_dict, strict=True):
-        model_dict = self.state_dict()
-        pretrained_dict = {k: v for k, v in state_dict.items()
-                           if k in model_dict and model_dict[k].size() == v.size()}
-
-        if len(pretrained_dict) == len(state_dict):
-            logging.info('%s: All params loaded' % type(self).__name__)
-        else:
-            logging.info('%s: Some params were not loaded:' % type(self).__name__)
-            not_loaded_keys = [k for k in state_dict.keys() if k not in pretrained_dict.keys()]
-            logging.info(('%s, ' * (len(not_loaded_keys) - 1) + '%s') % tuple(not_loaded_keys))
-
-        model_dict.update(pretrained_dict)
-        super(Inception3, self).load_state_dict(model_dict)
-
-
-class InceptionA(nn.Module):
-
-    def __init__(self, in_channels, pool_features):
-        super(InceptionA, self).__init__()
-        self.branch1x1 = BasicConv2d(in_channels, 64, kernel_size=1)
-
-        self.branch5x5_1 = BasicConv2d(in_channels, 48, kernel_size=1)
-        self.branch5x5_2 = BasicConv2d(48, 64, kernel_size=5, padding=2)
-
-        self.branch3x3dbl_1 = BasicConv2d(in_channels, 64, kernel_size=1)
-        self.branch3x3dbl_2 = BasicConv2d(64, 96, kernel_size=3, padding=1)
-        self.branch3x3dbl_3 = BasicConv2d(96, 96, kernel_size=3, padding=1)
-
-        self.branch_pool = BasicConv2d(in_channels, pool_features, kernel_size=1)
-
-    def forward(self, x):
-        branch1x1 = self.branch1x1(x)
-
-        branch5x5 = self.branch5x5_1(x)
-        branch5x5 = self.branch5x5_2(branch5x5)
-
-        branch3x3dbl = self.branch3x3dbl_1(x)
-        branch3x3dbl = self.branch3x3dbl_2(branch3x3dbl)
-        branch3x3dbl = self.branch3x3dbl_3(branch3x3dbl)
-
-        branch_pool = F.avg_pool2d(x, kernel_size=3, stride=1, padding=1)
-        branch_pool = self.branch_pool(branch_pool)
-
-        outputs = [branch1x1, branch5x5, branch3x3dbl, branch_pool]
-        return torch.cat(outputs, 1)
-
-
-class InceptionB(nn.Module):
-
-    def __init__(self, in_channels):
-        super(InceptionB, self).__init__()
-        self.branch3x3 = BasicConv2d(in_channels, 384, kernel_size=3, stride=2)
-
-        self.branch3x3dbl_1 = BasicConv2d(in_channels, 64, kernel_size=1)
-        self.branch3x3dbl_2 = BasicConv2d(64, 96, kernel_size=3, padding=1)
-        self.branch3x3dbl_3 = BasicConv2d(96, 96, kernel_size=3, stride=2)
-
-    def forward(self, x):
-        branch3x3 = self.branch3x3(x)
-
-        branch3x3dbl = self.branch3x3dbl_1(x)
-        branch3x3dbl = self.branch3x3dbl_2(branch3x3dbl)
-        branch3x3dbl = self.branch3x3dbl_3(branch3x3dbl)
-
-        branch_pool = F.max_pool2d(x, kernel_size=3, stride=2)
-
-        outputs = [branch3x3, branch3x3dbl, branch_pool]
-        return torch.cat(outputs, 1)
-
-
-class InceptionC(nn.Module):
-
-    def __init__(self, in_channels, channels_7x7):
-        super(InceptionC, self).__init__()
-        self.branch1x1 = BasicConv2d(in_channels, 192, kernel_size=1)
-
-        c7 = channels_7x7
-        self.branch7x7_1 = BasicConv2d(in_channels, c7, kernel_size=1)
-        self.branch7x7_2 = BasicConv2d(c7, c7, kernel_size=(1, 7), padding=(0, 3))
-        self.branch7x7_3 = BasicConv2d(c7, 192, kernel_size=(7, 1), padding=(3, 0))
-
-        self.branch7x7dbl_1 = BasicConv2d(in_channels, c7, kernel_size=1)
-        self.branch7x7dbl_2 = BasicConv2d(c7, c7, kernel_size=(7, 1), padding=(3, 0))
-        self.branch7x7dbl_3 = BasicConv2d(c7, c7, kernel_size=(1, 7), padding=(0, 3))
-        self.branch7x7dbl_4 = BasicConv2d(c7, c7, kernel_size=(7, 1), padding=(3, 0))
-        self.branch7x7dbl_5 = BasicConv2d(c7, 192, kernel_size=(1, 7), padding=(0, 3))
-
-        self.branch_pool = BasicConv2d(in_channels, 192, kernel_size=1)
-
-    def forward(self, x):
-        branch1x1 = self.branch1x1(x)
-
-        branch7x7 = self.branch7x7_1(x)
-        branch7x7 = self.branch7x7_2(branch7x7)
-        branch7x7 = self.branch7x7_3(branch7x7)
-
-        branch7x7dbl = self.branch7x7dbl_1(x)
-        branch7x7dbl = self.branch7x7dbl_2(branch7x7dbl)
-        branch7x7dbl = self.branch7x7dbl_3(branch7x7dbl)
-        branch7x7dbl = self.branch7x7dbl_4(branch7x7dbl)
-        branch7x7dbl = self.branch7x7dbl_5(branch7x7dbl)
-
-        branch_pool = F.avg_pool2d(x, kernel_size=3, stride=1, padding=1)
-        branch_pool = self.branch_pool(branch_pool)
-
-        outputs = [branch1x1, branch7x7, branch7x7dbl, branch_pool]
-        return torch.cat(outputs, 1)
-
-
-class InceptionD(nn.Module):
-
-    def __init__(self, in_channels):
-        super(InceptionD, self).__init__()
-        self.branch3x3_1 = BasicConv2d(in_channels, 192, kernel_size=1)
-        self.branch3x3_2 = BasicConv2d(192, 320, kernel_size=3, stride=2)
-
-        self.branch7x7x3_1 = BasicConv2d(in_channels, 192, kernel_size=1)
-        self.branch7x7x3_2 = BasicConv2d(192, 192, kernel_size=(1, 7), padding=(0, 3))
-        self.branch7x7x3_3 = BasicConv2d(192, 192, kernel_size=(7, 1), padding=(3, 0))
-        self.branch7x7x3_4 = BasicConv2d(192, 192, kernel_size=3, stride=2)
-
-    def forward(self, x):
-        branch3x3 = self.branch3x3_1(x)
-        branch3x3 = self.branch3x3_2(branch3x3)
-
-        branch7x7x3 = self.branch7x7x3_1(x)
-        branch7x7x3 = self.branch7x7x3_2(branch7x7x3)
-        branch7x7x3 = self.branch7x7x3_3(branch7x7x3)
-        branch7x7x3 = self.branch7x7x3_4(branch7x7x3)
-
-        branch_pool = F.max_pool2d(x, kernel_size=3, stride=2)
-        outputs = [branch3x3, branch7x7x3, branch_pool]
-        return torch.cat(outputs, 1)
-
-
-class InceptionE(nn.Module):
-
-    def __init__(self, in_channels):
-        super(InceptionE, self).__init__()
-        self.branch1x1 = BasicConv2d(in_channels, 320, kernel_size=1)
-
-        self.branch3x3_1 = BasicConv2d(in_channels, 384, kernel_size=1)
-        self.branch3x3_2a = BasicConv2d(384, 384, kernel_size=(1, 3), padding=(0, 1))
-        self.branch3x3_2b = BasicConv2d(384, 384, kernel_size=(3, 1), padding=(1, 0))
-
-        self.branch3x3dbl_1 = BasicConv2d(in_channels, 448, kernel_size=1)
-        self.branch3x3dbl_2 = BasicConv2d(448, 384, kernel_size=3, padding=1)
-        self.branch3x3dbl_3a = BasicConv2d(384, 384, kernel_size=(1, 3), padding=(0, 1))
-        self.branch3x3dbl_3b = BasicConv2d(384, 384, kernel_size=(3, 1), padding=(1, 0))
-
-        self.branch_pool = BasicConv2d(in_channels, 192, kernel_size=1)
-
-    def forward(self, x):
-        branch1x1 = self.branch1x1(x)
-
-        branch3x3 = self.branch3x3_1(x)
-        branch3x3 = [
-            self.branch3x3_2a(branch3x3),
-            self.branch3x3_2b(branch3x3),
-        ]
-        branch3x3 = torch.cat(branch3x3, 1)
-
-        branch3x3dbl = self.branch3x3dbl_1(x)
-        branch3x3dbl = self.branch3x3dbl_2(branch3x3dbl)
-        branch3x3dbl = [
-            self.branch3x3dbl_3a(branch3x3dbl),
-            self.branch3x3dbl_3b(branch3x3dbl),
-        ]
-        branch3x3dbl = torch.cat(branch3x3dbl, 1)
-
-        branch_pool = F.avg_pool2d(x, kernel_size=3, stride=1, padding=1)
-        branch_pool = self.branch_pool(branch_pool)
-
-        outputs = [branch1x1, branch3x3, branch3x3dbl, branch_pool]
-        return torch.cat(outputs, 1)
-
-
-class InceptionAux(nn.Module):
-
-    def __init__(self, in_channels, num_classes):
-        super(InceptionAux, self).__init__()
-        self.conv0 = BasicConv2d(in_channels, 128, kernel_size=1)
-        self.conv1 = BasicConv2d(128, 768, kernel_size=5)
-        self.conv1.stddev = 0.01
-        self.fc = nn.Linear(768, num_classes)
-        self.fc.stddev = 0.001
-
-    def forward(self, x):
-        # 17 x 17 x 768
-        x = F.avg_pool2d(x, kernel_size=5, stride=3)
-        # 5 x 5 x 768
-        x = self.conv0(x)
-        # 5 x 5 x 128
-        x = self.conv1(x)
-        # 1 x 1 x 768
-        x = x.view(x.size(0), -1)
-        # 768
-        x = self.fc(x)
-        # 1000
-        return x
-
 
 class BasicConv2d(nn.Module):
 
@@ -1035,193 +647,6 @@ def weights_init_classifier(m):
             nn.init.constant_(m.bias, 0.0)
 
 
-class SAMS(nn.Module):
-    """
-    Split-Attend-Merge-Stack agent
-    Input an feature map with shape H*W*C, we first split the feature maps into
-    multiple parts, obtain the attention map of each part, and the attention map
-    for the current pyramid level is constructed by mergiing each attention map.
-    """
-    def __init__(self, in_channels, channels,
-                 radix=4, reduction_factor=4,
-                norm_layer=nn.BatchNorm2d):
-        super(SAMS, self).__init__()
-        inter_channels = max(in_channels*radix//reduction_factor, 32)
-        self.radix = radix
-        self.channels = channels
-        self.relu = nn.ReLU(inplace=True)
-        self.fc1 = nn.Conv2d(channels, inter_channels, 1, groups=1)
-        self.bn1 = norm_layer(inter_channels)
-        self.fc2 = nn.Conv2d(inter_channels, channels*radix, 1, groups=1)
-
-
-    def forward(self, x):
-
-        batch, channel = x.shape[:2]
-        splited = torch.split(x, channel//self.radix, dim=1)
-
-        gap = sum(splited)
-        gap = F.adaptive_avg_pool2d(gap, 1)
-        gap = self.fc1(gap)
-        gap = self.bn1(gap)
-        gap = self.relu(gap)
-
-        atten = self.fc2(gap).view((batch, self.radix, self.channels))
-        atten = F.softmax(atten, dim=1).view(batch, -1, 1, 1)
-        atten = torch.split(atten, channel//self.radix, dim=1)
-
-        out= torch.cat([att*split for (att, split) in zip(atten, splited)],1)
-        return out.contiguous()
-
-
-# class SELayer(nn.Module):
-#     def __init__(self, channel, reduction=16):
-#         super(SELayer, self).__init__()
-#         self.avg_pool = nn.AdaptiveAvgPool2d(1)
-#         self.fc = nn.Sequential(
-#             nn.Linear(channel, channel // reduction, bias=False),
-#             nn.ReLU(inplace=True),
-#             nn.Linear(channel // reduction, channel, bias=False),
-#             nn.Sigmoid()
-#         )
-
-#     def forward(self, x):
-#         b, c, _, _ = x.size()
-#         y = self.avg_pool(x).view(b, c)
-#         y = self.fc(y).view(b, c, 1, 1)
-#         return  y
-    
-# class SELayer(nn.Module):
-#     def __init__(self, channel, reduction=16):
-#         super(SELayer, self).__init__()
-#         self.avg_pool = nn.AdaptiveAvgPool2d(1)
-#         self.fc = nn.Sequential(
-#             nn.Linear(channel, channel // reduction, bias=False),
-#             nn.ReLU(inplace=True),
-#             nn.Linear(channel // reduction, channel, bias=False),
-#             nn.Sigmoid()
-#         )
-
-#     def forward(self, x):
-#         b, c, _, _ = x.size()
-#         y = self.avg_pool(x).view(b, c)
-#         y = self.fc(y).view(b, c, 1, 1)
-#         return  y
-    
-class ECA(nn.Module):
-    """Constructs a ECA module.
-
-    Args:
-        channel: Number of channels of the input feature map
-        k_size: Adaptive selection of kernel size
-    """
-    def __init__(self, channel, gamma=3, beta= 1):
-        super(ECA, self).__init__()
-        t = int(abs(math.log(channel, 2)+beta) / gamma)
-        k_size = t if t%2 else t+1
-        self.avg_pool = nn.AdaptiveAvgPool2d(1)
-        self.conv = nn.Conv1d(1, 1, kernel_size=k_size, padding=(k_size - 1) // 2, bias=False) 
-        self.sigmoid = nn.Sigmoid()
-
-    def forward(self, x):
-        # feature descriptor on the global spatial information
-        y = self.avg_pool(x)
-
-        # Two different branches of ECA module
-        y = self.conv(y.squeeze(-1).transpose(-1, -2)).transpose(-1, -2).unsqueeze(-1)
-
-        # Multi-scale information fusion
-        y = self.sigmoid(y)
-
-        return x * y.expand_as(x)
-    
-# class ECA(nn.Module):
-#     """Constructs a ECA module.
-
-#     Args:
-#         channel: Number of channels of the input feature map
-#         k_size: Adaptive selection of kernel size
-#     """
-#     def __init__(self, channel, gamma=3, beta= 1):
-#         super(ECA, self).__init__()
-#         t = int(abs(math.log(channel, 2)+beta) / gamma)
-#         k_size = t if t%2 else t+1
-#         self.avg_pool = nn.AdaptiveAvgPool2d(1)
-#         self.max_pool = nn.AdaptiveMaxPool2d(1)
-#         self.conv_avg = nn.Conv1d(1, 1, kernel_size=k_size, padding=(k_size - 1) // 2, bias=False) 
-#         self.conv_max = nn.Conv1d(1, 1, kernel_size=k_size, padding=(k_size - 1) // 2, bias=False) 
-#         self.conv = nn.Conv1d(in_channels=channel * 2, out_channels= channel, kernel_size=1,bias=False) 
-#         self.relu = nn.ReLU()
-#         self.sig1 = nn.Sigmoid()
-#         self.sig2 = nn.Sigmoid()
-
-    # def forward(self, x):
-    #     # feature descriptor on the global spatial information
-    #     y1 = self.avg_pool(x)
-    #     y2 = self.max_pool(x)
-    #     # Two different branches of ECA module
-    #     y1 = self.conv_avg(y1.squeeze(-1).transpose(-1, -2)).transpose(-1, -2).unsqueeze(-1)
-    #     y1 = self.sig1(y1)
-    #     y2 = self.conv_max(y2.squeeze(-1).transpose(-1, -2)).transpose(-1, -2).unsqueeze(-1)
-    #     y2 = self.sig2(y2)
-    #     y = torch.cat((y1, y2), dim= -3)
-    #     y = self.conv(y.squeeze(-1)).unsqueeze(-1)
-    #     # Multi-scale information fusion
-    #     y = self.relu(y)
-
-    #     return x * y
-    
-class EMA(nn.Module):
-    def __init__(self, channels, factor=32):
-        super(EMA, self).__init__()
-        self.groups = factor
-        assert channels // self.groups > 0
-        self.softmax = nn.Softmax(-1)
-        self.agp = nn.AdaptiveAvgPool2d((1, 1))
-        self.pool_h = nn.AdaptiveAvgPool2d((None, 1))
-        self.pool_w = nn.AdaptiveAvgPool2d((1, None))
-        self.gn = nn.GroupNorm(channels // self.groups, channels // self.groups)
-        self.conv1x1 = nn.Conv2d(channels // self.groups, channels // self.groups, kernel_size=1, stride=1, padding=0)
-        self.conv3x3 = nn.Conv2d(channels // self.groups, channels // self.groups, kernel_size=3, stride=1, padding=1)
-
-    def forward(self, x):
-        b, c, h, w = x.size()
-        group_x = x.reshape(b * self.groups, -1, h, w)  # b*g,c//g,h,w
-        x_h = self.pool_h(group_x)
-        x_w = self.pool_w(group_x).permute(0, 1, 3, 2)
-        hw = self.conv1x1(torch.cat([x_h, x_w], dim=2))
-        x_h, x_w = torch.split(hw, [h, w], dim=2)
-        x1 = self.gn(group_x * x_h.sigmoid() * x_w.permute(0, 1, 3, 2).sigmoid())
-        x2 = self.conv3x3(group_x)
-        x11 = self.softmax(self.agp(x1).reshape(b * self.groups, -1, 1).permute(0, 2, 1))
-        x12 = x2.reshape(b * self.groups, c // self.groups, -1)  # b*g, c//g, hw
-        x21 = self.softmax(self.agp(x2).reshape(b * self.groups, -1, 1).permute(0, 2, 1))
-        x22 = x1.reshape(b * self.groups, c // self.groups, -1)  # b*g, c//g, hw
-        weights = (torch.matmul(x11, x12) + torch.matmul(x21, x22)).reshape(b * self.groups, 1, h, w)
-        return (group_x * weights.sigmoid()).reshape(b, c, h, w)
-    
-# class GATE(nn.Module):
-#     def __init__(self, channel, alpha= 0.5):
-#         super(GATE, self).__init__()
-#         self.eca = ECA(channel, gamma= 3, beta= 1)
-#         self.ema = EMA(channel, factor= 32)
-#         self.alpha = alpha
-#     def forward(self, x):
-#         return self.alpha * self.eca(x) + (1 - self.alpha) * self.ema(x)
-    
-class GATE(nn.Module):
-    def __init__(self, channel, alpha= 0.5):
-        super(GATE, self).__init__()
-        self.eca = ECA(channel, gamma= 3, beta= 1)
-        self.ema = EMA(channel, factor= 32)
-        self.conv = nn.Conv2d(in_channels=channel * 2, out_channels=channel, kernel_size=3, padding=1)
-        self.sig = nn.Sigmoid()
-    def forward(self, x):
-        x1 = torch.cat((self.eca(x), self.ema(x)), dim= -3)
-        x1 = self.conv(x1)
-        x1 = self.sig(x1)
-        return .9 * self.eca(x) + 0.1 * self.ema(x)
-
 class GMAT(torch.nn.Module):
     def __init__(self, channel):
         super(GMAT, self).__init__()
@@ -1264,11 +689,9 @@ class BN2d(nn.Module):
 class Baseline(nn.Module):
     in_planes = 2048
 
-    def __init__(self, num_classes, last_stride, model_path,level,msmt):
+    def __init__(self, num_classes, last_stride, model_path,):
         super(Baseline, self).__init__()
-        print(f"Training with pyramid level {level}")
-        self.level = level
-        self.is_msmt = msmt
+        print(f"Training started")
         self.base = ResNet(last_stride= last_stride)
         
 
@@ -1279,53 +702,11 @@ class Baseline(nn.Module):
         self.base_4 = nn.Sequential(*list(self.base.children())[5:6])
         self.base_5 = nn.Sequential(*list(self.base.children())[6:])
 
-
-        if self.level > 0:
-            # self.att1 = SELayer(64,8)
-            # self.att2 = SELayer(256,32)
-            # self.att3 = SELayer(512,64)
-            # self.att4 = SELayer(1024,128)
-            # self.att5 = SELayer(2048,256)
-            # self.att1 = ECA(64)
-            # self.att2 = ECA(256)
-            # self.att3 = ECA(512)
-            # self.att4 = ECA(1024)
-            # self.att5 = ECA(2048)
-            # self.att1 = EMA(64)
-            # self.att2 = EMA(256)
-            # self.att3 = EMA(512)
-            # self.att4 = EMA(1024)
-            # self.att5 = EMA(2048)
-            self.att1 = GMAT(64)
-            self.att2 = GMAT(256)
-            self.att3 = GMAT(512)
-            self.att4 = GMAT(1024)
-            self.att5 = GMAT(2048)
-            if self.level > 1: # second pyramid level
-                self.att_s1=SAMS(64,int(64/self.level),radix=self.level)
-                self.att_s2=SAMS(256,int(256/self.level),radix=self.level)
-                self.att_s3=SAMS(512,int(512/self.level),radix=self.level)
-                self.att_s4=SAMS(1024,int(1024/self.level),radix=self.level)
-                self.att_s5=SAMS(2048,int(2048/self.level),radix=self.level)
-                self.BN1 = BN2d(64)
-                self.BN2 = BN2d(256)
-                self.BN3 = BN2d(512)
-                self.BN4 = BN2d(1024)
-                self.BN5 = BN2d(2048)
-
-                if self.level > 2:
-                    self.att_ss1=SAMS(64,int(64/self.level),radix=self.level)
-                    self.att_ss2=SAMS(256,int(256/self.level),radix=self.level)
-                    self.att_ss3=SAMS(512,int(512/self.level),radix=self.level)
-                    self.att_ss4=SAMS(1024,int(1024/self.level),radix=self.level)
-                    self.att_ss5=SAMS(2048,int(2048/self.level),radix=self.level)
-                    self.BN_1 = BN2d(64)
-                    self.BN_2 = BN2d(256)
-                    self.BN_3 = BN2d(512)
-                    self.BN_4 = BN2d(1024)
-                    self.BN_5 = BN2d(2048)
-                    if self.level > 3:
-                        raise RuntimeError("We do not support pyramid level greater than three.")
+        self.att1 = GMAT(64)
+        self.att2 = GMAT(256)
+        self.att3 = GMAT(512)
+        self.att4 = GMAT(1024)
+        self.att5 = GMAT(2048)
 
         self.gap = nn.AdaptiveAvgPool2d(1)
         self.num_classes = num_classes
@@ -1339,65 +720,20 @@ class Baseline(nn.Module):
 
     def forward(self, x):
 
-
-        #pdb.set_trace()
         x = self.base_1(x)
-        if self.level > 2:
-            x = self.att_ss1(x)
-            x = self.BN_1(x)
-        if self.level > 1:
-            x = self.att_s1(x)
-            x = self.BN1(x)
-        if self.level > 0:
-            y = self.att1(x)
-            x=x+y.expand_as(x)
-
+        x=x+y.expand_as(x)
 
         x = self.base_2(x)
-        if self.level > 2:
-            x = self.att_ss2(x)
-            x = self.BN_2(x)
-        if self.level > 1:
-            x = self.att_s2(x)
-            x = self.BN2(x)
-        if self.level > 0:
-            y = self.att2(x)
-            x=x+y.expand_as(x)
-
+        x=x+y.expand_as(x)
 
         x = self.base_3(x)
-        if self.level > 2:
-            x = self.att_ss3(x)
-            x = self.BN_3(x)
-        if self.level > 1:
-            x = self.att_s3(x)
-            x = self.BN3(x)
-        if self.level > 0:
-            y = self.att3(x)
-            x=x+y.expand_as(x)
+        x=x+y.expand_as(x)
 
         x = self.base_4(x)
-        if self.level > 2:
-            x = self.att_ss4(x)
-            x = self.BN_4(x)
-        if self.level > 1:
-            x = self.att_s4(x)
-            x = self.BN4(x)
-        if self.level > 0:
-            y = self.att4(x)
-            x=x+y.expand_as(x)
-
+        x=x+y.expand_as(x)
 
         x = self.base_5(x)
-        if self.level > 2:
-            x = self.att_ss5(x)
-            x = self.BN_5(x)
-        if self.level > 1:
-            x = self.att_s5(x)
-            x = self.BN5(x)
-        if self.level > 0:
-            y = self.att5(x)
-            x=x+y.expand_as(x)
+        x=x+y.expand_as(x)
 
 
         global_feat = self.gap(x)  # (b, 2048, 1, 1)
@@ -1410,16 +746,14 @@ class Baseline(nn.Module):
 
             return cls_score, global_feat  # global feature for triplet loss
         else:
-            if self.is_msmt:
-                return self.classifier(feat)
-            else:
-                return feat
+            
+            return feat
 
             # return self.classifier(feat)
 
 def build_model(num_classes):
     if MODEL_NAME == 'resnet50':
-        model = Baseline(num_classes, MODEL_LAST_STRIDE, MODEL_PRETRAIN_PATH, APNET_LEVEL, APNET_MSMT)
+        model = Baseline(num_classes, MODEL_LAST_STRIDE, MODEL_PRETRAIN_PATH)
         return model
     else:
         raise RuntimeError("'{}' is not available".format(MODEL_NAME))
