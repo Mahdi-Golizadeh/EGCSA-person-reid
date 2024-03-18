@@ -656,7 +656,7 @@ class GMAT(torch.nn.Module):
         self.max_sp = torch.nn.AdaptiveMaxPool1d(1)
         self.elu = torch.nn.ELU()
         self.sig = torch.nn.Sigmoid()
-        self.bn = torch.nn.BatchNorm2d(channel)
+        # self.bn = torch.nn.BatchNorm2d(channel)
     def forward(self, x):
         b, c, h, w = x.size()
         x11 = self.avg_ch(x)
@@ -680,7 +680,7 @@ class GMAT(torch.nn.Module):
         # conv1d_hw = torch.nn.Conv1d(in_channels= h * w, out_channels=h * w, kernel_size=1, device= MODEL_DEVICE)
         # x21 = conv1d_hw(x21.permute(-4, -1, -2, -3).reshape(-1, h * w, 1)).permute(0, 2, 1).reshape(b, 1, h, w)
         # bn = self.bn(self.elu(x11) * x + self.elu(x21) * x)
-        return self.sig(self.bn(x11)) * x
+        return self.sig(x11) * x
 
 class BN2d(nn.Module):
     def __init__(self, planes):
