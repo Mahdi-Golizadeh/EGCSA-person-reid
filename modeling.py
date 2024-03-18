@@ -721,19 +721,19 @@ class Baseline(nn.Module):
     def forward(self, x):
 
         x = self.base_1(x)
-        x=x+y.expand_as(x)
+        x=x+self.att1(x).expand_as(x)
 
         x = self.base_2(x)
-        x=x+y.expand_as(x)
+        x=x+self.att2(x).expand_as(x)
 
         x = self.base_3(x)
-        x=x+y.expand_as(x)
+        x=x+self.att3(x).expand_as(x)
 
         x = self.base_4(x)
-        x=x+y.expand_as(x)
+        x=x+self.att4(x).expand_as(x)
 
         x = self.base_5(x)
-        x=x+y.expand_as(x)
+        x=x+self.att5(x).expand_as(x)
 
 
         global_feat = self.gap(x)  # (b, 2048, 1, 1)
