@@ -21,17 +21,12 @@ MODEL_PRETRAIN_PATH_SE = ''
 MODEL_PRETRAIN_PATH_DENSE = ''
 
 # -----------------------------------------------------------------------------
-# APNet
-# -----------------------------------------------------------------------------
-APNET_LEVEL = 1
-APNET_MSMT = False
-# -----------------------------------------------------------------------------
 # INPUT
 # -----------------------------------------------------------------------------
 # Size of the image during training
-INPUT_SIZE_TRAIN = [384, 192]
+INPUT_SIZE_TRAIN = [320, 160]
 # Size of the image during test
-INPUT_SIZE_TEST = [384, 192]
+INPUT_SIZE_TEST = [320, 160]
 # Random probability for image horizontal flip
 INPUT_PROB = 0.5
 # Values to be used for image normalization
@@ -51,7 +46,7 @@ DATASETS_NAMES = ('dukemtmc') #select from "dukemtmc", "market1501" and "msmt17"
 # DataLoader
 # -----------------------------------------------------------------------------
 # Number of data loading threads
-DATALOADER_NUM_WORKERS = 4
+DATALOADER_NUM_WORKERS = 2
 # Sampler for data loading
 DATALOADER_SAMPLER = 'softmax_triplet'
 # Number of instance for one batch
