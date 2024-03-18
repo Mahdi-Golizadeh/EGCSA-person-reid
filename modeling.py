@@ -674,13 +674,13 @@ class GMAT(torch.nn.Module):
         x11 = self.elu(x11)
         x21 = self.elu(x21)
         x11 = x11.unsqueeze(-1) * x + x21 * x
-        conv1d_c = torch.nn.Conv1d(in_channels= c, out_channels= c, kernel_size=1, device= MODEL_DEVICE)
-        x11 = conv1d_c(x11.permute(-4, -2, -1, -3).reshape(-1, c, h * w))
-        x11 = x11.view(b, c, h, w)
-        conv1d_hw = torch.nn.Conv1d(in_channels= h * w, out_channels=h * w, kernel_size=1, device= MODEL_DEVICE)
-        x21 = conv1d_hw(x21.permute(-4, -1, -2, -3).reshape(-1, h * w, 1)).permute(0, 2, 1).reshape(b, 1, h, w)
-        bn = self.bn(self.elu(x11) * x + self.elu(x21) * x)
-        return self.sig(bn) * x
+        # conv1d_c = torch.nn.Conv1d(in_channels= c, out_channels= c, kernel_size=1, device= MODEL_DEVICE)
+        # x11 = conv1d_c(x11.permute(-4, -2, -1, -3).reshape(-1, c, h * w))
+        # x11 = x11.view(b, c, h, w)
+        # conv1d_hw = torch.nn.Conv1d(in_channels= h * w, out_channels=h * w, kernel_size=1, device= MODEL_DEVICE)
+        # x21 = conv1d_hw(x21.permute(-4, -1, -2, -3).reshape(-1, h * w, 1)).permute(0, 2, 1).reshape(b, 1, h, w)
+        # bn = self.bn(self.elu(x11) * x + self.elu(x21) * x)
+        return self.sig(self.bn(x11)) * x
 
 class BN2d(nn.Module):
     def __init__(self, planes):
