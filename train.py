@@ -51,7 +51,7 @@ def train():
 
     loss_func = make_loss()
     if MODEL_PRETRAIN_CHOICE == 'self':
-        start_epoch = eval(MODEL_PRETRAIN_PATH.split('/')[-1].split('.')[0].split('_')[-1])
+        start_epoch = (eval(MODEL_PRETRAIN_PATH.split('/')[-1].split('.')[0].split('_')[-1])) / 241
         print('Start epoch:', start_epoch)
         path_to_optimizer = MODEL_PRETRAIN_PATH.replace('model', 'optimizer')
         print('Path to the checkpoint of optimizer:', path_to_optimizer)
