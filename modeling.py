@@ -715,6 +715,12 @@ class Baseline(nn.Module):
         self.att4 = GMAT(1024)
         self.att5 = GMAT(2048)
 
+        self.BN1 = BN2d(64)
+        self.BN2 = BN2d(256)
+        self.BN3 = BN2d(512)
+        self.BN4 = BN2d(1024)
+        self.BN5 = BN2d(2048)
+
         self.gap = nn.AdaptiveAvgPool2d(1)
         self.num_classes = num_classes
 
@@ -729,19 +735,23 @@ class Baseline(nn.Module):
 
         x = self.base_1(x)
         x=x+self.att1(x).expand_as(x)
+        x = self.BN1(x)
 
         x = self.base_2(x)
         x=x+self.att2(x).expand_as(x)
+        x = self.BN2(x)
 
         x = self.base_3(x)
         x=x+self.att3(x).expand_as(x)
+        x = self.BN3(x)
 
         x = self.base_4(x)
         x=x+self.att4(x).expand_as(x)
+        x = self.BN4(x)
 
         x = self.base_5(x)
         x=x+self.att5(x).expand_as(x)
-
+        x = self.BN5(x)
 
         global_feat = self.gap(x)  # (b, 2048, 1, 1)
         global_feat = global_feat.view(global_feat.shape[0], -1)  # flatten to (bs, 2048)
