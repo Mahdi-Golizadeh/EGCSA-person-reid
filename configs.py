@@ -98,7 +98,7 @@ SOLVER_IMS_PER_BATCH = 64
 # see 2 images per batch
 TEST_IMS_PER_BATCH = 128
 TEST_RE_RANK = False
-TEST_WEIGHT = "/kaggle/working/resnet50_checkpoint_2169.pt"
+TEST_WEIGHT = "/kaggle/working/resnet50_checkpoint_7230.pt"
 
 # ---------------------------------------------------------------------------- #
 # Misc options
