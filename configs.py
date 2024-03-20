@@ -57,7 +57,7 @@ DATALOADER_NUM_INSTANCE = 4
 # ---------------------------------------------------------------------------- #
 SOLVER_OPTIMIZER_NAME = "Adam"
 
-SOLVER_MAX_EPOCHS = 10
+SOLVER_MAX_EPOCHS = 30
 
 SOLVER_BASE_LR = 0.00000035
 SOLVER_BIAS_LR_FACTOR = 1
