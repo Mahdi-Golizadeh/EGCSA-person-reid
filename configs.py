@@ -14,9 +14,9 @@
 MODEL_DEVICE = "cuda:0"
 MODEL_NAME = 'resnet50' # 'resnet50' 'seresnet50' 'densenet196'
 MODEL_LAST_STRIDE = 1
-MODEL_PRETRAIN_CHOICE = "imagenet" # imagenet for imagenet checkpoint and self for resume training
+MODEL_PRETRAIN_CHOICE = "self" # imagenet for imagenet checkpoint and self for resume training
 #ResNet50 Pretrained Model Path, eg "/home/gutianpei/.cache/torch/hub/checkpoints/resnet50-19c8e357.pth"
-MODEL_PRETRAIN_PATH = 'resnet50-0676ba61.pth'
+MODEL_PRETRAIN_PATH = '/kaggle/working/resnet50_checkpoint_7230.pt'
 MODEL_PRETRAIN_PATH_SE = ''
 MODEL_PRETRAIN_PATH_DENSE = ''
 
@@ -59,7 +59,7 @@ SOLVER_OPTIMIZER_NAME = "Adam"
 
 SOLVER_MAX_EPOCHS = 10
 
-SOLVER_BASE_LR = 0.00035
+SOLVER_BASE_LR = 0.00000035
 SOLVER_BIAS_LR_FACTOR = 1
 
 SOLVER_MOMENTUM = 0.9
@@ -98,7 +98,7 @@ SOLVER_IMS_PER_BATCH = 64
 # see 2 images per batch
 TEST_IMS_PER_BATCH = 128
 TEST_RE_RANK = False
-TEST_WEIGHT = ""
+TEST_WEIGHT = "/kaggle/working/resnet50_checkpoint_7230.pt"
 
 # ---------------------------------------------------------------------------- #
 # Misc options
