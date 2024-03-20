@@ -61,7 +61,7 @@ def train():
         # optimizer.to(MODEL_DEVICE)
         scheduler = WarmupMultiStepLR(optimizer, SOLVER_STEPS, 
                                         SOLVER_GAMMA, SOLVER_WARMUP_FACTOR,
-                                        SOLVER_WARMUP_ITERS, SOLVER_WARMUP_METHOD, 100)
+                                        SOLVER_WARMUP_ITERS, SOLVER_WARMUP_METHOD, 150)
     
     arguments = {}
 
