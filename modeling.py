@@ -647,9 +647,9 @@ def weights_init_classifier(m):
             nn.init.constant_(m.bias, 0.0)
 
 
-class GMAT(torch.nn.Module):
+class EGAT(torch.nn.Module):
     def __init__(self, channel):
-        super(GMAT, self).__init__()
+        super(EGAT, self).__init__()
         self.avg_ch = torch.nn.AdaptiveAvgPool2d((1, 1))
         self.max_ch = torch.nn.AdaptiveMaxPool2d((1, 1))
         self.avg_sp = torch.nn.AdaptiveAvgPool1d(1)
@@ -658,29 +658,33 @@ class GMAT(torch.nn.Module):
         self.sig = torch.nn.Sigmoid()
         # self.bn = torch.nn.BatchNorm2d(channel)
     def forward(self, x):
+        # retrieve the size of the input
         b, c, h, w = x.size()
+        # channel-wise average pooling
         x11 = self.avg_ch(x)
+        # channel-wise max pooling
         x12 = self.max_ch(x)
+        # spatial average pooling
         x21 = self.avg_sp(x.permute(-4, -1, -2, -3).reshape(b, h*w, -1))
+        # spatial max pooling
         x22 = self.max_sp(x.permute(-4, -1, -2, -3).reshape(b, h*w, -1))
+        # concating channel features
         x11 = torch.cat([x11, x12], dim= -3)
+        # concating spatial features
         x21 = torch.cat([x21, x22], dim= -2)
-        del x12
-        del x22
-        conv1 = torch.nn.Conv1d(c * 2, c, kernel_size= 1, device= MODEL_DEVICE)
+        conv1 = torch.nn.Conv1d(c * 2, c, kernel_size= c, padding= "same", device= MODEL_DEVICE)
         x11 = conv1(x11.squeeze(-1))
-        conv2 = torch.nn.Conv1d(h * w * 2, h * w , kernel_size= 1, device= MODEL_DEVICE)
+        conv2 = torch.nn.Conv1d(h * w * 2, h * w , kernel_size= h * w , padding= "same", device= MODEL_DEVICE)
         x21 = conv2(x21).reshape(b, -1, h, w)
         x11 = self.elu(x11)
         x21 = self.elu(x21)
         x11 = x11.unsqueeze(-1) * x + x21 * x
-        conv1d_c = torch.nn.Conv1d(in_channels= c, out_channels= c, kernel_size=1, device= MODEL_DEVICE)
+        conv1d_c = torch.nn.Conv1d(in_channels= c, out_channels= c, kernel_size= c / 2 , padding= "same", device= MODEL_DEVICE)
         x11 = conv1d_c(x11.permute(-4, -2, -1, -3).reshape(-1, c, h * w))
         x11 = x11.view(b, c, h, w)
-        conv1d_hw = torch.nn.Conv1d(in_channels= h * w, out_channels=h * w, kernel_size=1, device= MODEL_DEVICE)
+        conv1d_hw = torch.nn.Conv1d(in_channels= h * w, out_channels=h * w, kernel_size= h * w / 2, padding= "same", device= MODEL_DEVICE)
         x21 = conv1d_hw(x21.permute(-4, -1, -2, -3).reshape(-1, h * w, 1)).permute(0, 2, 1).reshape(b, 1, h, w)
-        # bn = self.bn(self.elu(x11) * x + self.elu(x21) * x)
-        return self.sig(self.elu(x11) * x + self.elu(x21) * x) * x
+        return self.sig(x11) * x + self.sig(x21) * x
 
 class BN2d(nn.Module):
     def __init__(self, planes):

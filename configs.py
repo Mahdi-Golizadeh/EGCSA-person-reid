@@ -14,9 +14,9 @@
 MODEL_DEVICE = "cuda:0"
 MODEL_NAME = 'resnet50' # 'resnet50' 'seresnet50' 'densenet196'
 MODEL_LAST_STRIDE = 1
-MODEL_PRETRAIN_CHOICE = "self" # imagenet for imagenet checkpoint and self for resume training
+MODEL_PRETRAIN_CHOICE = "imagenet" # imagenet for imagenet checkpoint and self for resume training
 #ResNet50 Pretrained Model Path, eg "/home/gutianpei/.cache/torch/hub/checkpoints/resnet50-19c8e357.pth"
-MODEL_PRETRAIN_PATH = '/kaggle/working/resnet50_checkpoint_7230.pt'
+MODEL_PRETRAIN_PATH = 'resnet50-0676ba61.pth'
 MODEL_PRETRAIN_PATH_SE = ''
 MODEL_PRETRAIN_PATH_DENSE = ''
 
@@ -24,9 +24,9 @@ MODEL_PRETRAIN_PATH_DENSE = ''
 # INPUT
 # -----------------------------------------------------------------------------
 # Size of the image during training
-INPUT_SIZE_TRAIN = [320, 160]
+INPUT_SIZE_TRAIN = [256, 128]
 # Size of the image during test
-INPUT_SIZE_TEST = [320, 160]
+INPUT_SIZE_TEST = [256, 128]
 # Random probability for image horizontal flip
 INPUT_PROB = 0.5
 # Values to be used for image normalization
@@ -78,7 +78,7 @@ SOLVER_WEIGHT_DECAY = 0.0005
 SOLVER_WEIGHT_DECAY_BIAS = 0.0005
 
 SOLVER_GAMMA = 0.1
-SOLVER_STEPS = [5, 10, 15]
+SOLVER_STEPS = [15, 30, 70]
 
 SOLVER_WARMUP_FACTOR = 0.01
 SOLVER_WARMUP_ITERS = 10
@@ -86,7 +86,7 @@ SOLVER_WARMUP_METHOD = "linear"
 
 SOLVER_CHECKPOINT_PERIOD = 1
 SOLVER_LOG_PERIOD = 241
-SOLVER_EVAL_PERIOD = 241
+SOLVER_EVAL_PERIOD = 10
 SOLVER_FINETUNE = False
 
 # Number of images per batch
@@ -98,7 +98,7 @@ SOLVER_IMS_PER_BATCH = 64
 # see 2 images per batch
 TEST_IMS_PER_BATCH = 128
 TEST_RE_RANK = False
-TEST_WEIGHT = "/kaggle/working/resnet50_checkpoint_7230.pt"
+TEST_WEIGHT = "."
 
 # ---------------------------------------------------------------------------- #
 # Misc options
