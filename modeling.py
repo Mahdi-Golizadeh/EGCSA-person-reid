@@ -713,11 +713,11 @@ class Baseline(nn.Module):
         self.base_4 = nn.Sequential(*list(self.base.children())[5:6])
         self.base_5 = nn.Sequential(*list(self.base.children())[6:])
 
-        self.att1 = GMAT(64)
-        self.att2 = GMAT(256)
-        self.att3 = GMAT(512)
-        self.att4 = GMAT(1024)
-        self.att5 = GMAT(2048)
+        self.att1 = EGAT(64)
+        self.att2 = EGAT(256)
+        self.att3 = EGAT(512)
+        self.att4 = EGAT(1024)
+        self.att5 = EGAT(2048)
 
         self.BN1 = BN2d(64)
         self.BN2 = BN2d(256)
