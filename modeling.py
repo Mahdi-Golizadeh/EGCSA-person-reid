@@ -647,7 +647,7 @@ def weights_init_classifier(m):
             nn.init.constant_(m.bias, 0.0)
 
 
-class EGAT(torch.nn.Module):
+class EGA(torch.nn.Module):
     def __init__(self, channel):
         super(EGAT, self).__init__()
         self.avg_ch = torch.nn.AdaptiveAvgPool2d((1, 1))
