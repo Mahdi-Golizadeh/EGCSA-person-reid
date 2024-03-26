@@ -650,13 +650,15 @@ def weights_init_classifier(m):
 class GAT(torch.nn.Module):
     def __init__(self, channel):
         super(GAT, self).__init__()
+        t = int(abs(math.log(channel, 2) + 1) / 2)
+        k = t if t%2 else t+1
         self.avg_ch = torch.nn.AdaptiveAvgPool2d((1, 1))
         self.max_ch = torch.nn.AdaptiveMaxPool2d((1, 1))
         self.avg_sp = torch.nn.AdaptiveAvgPool1d(1)
         self.max_sp = torch.nn.AdaptiveMaxPool1d(1)
-        self.conv_ch_1 = nn.Conv2d(in_channels=2, out_channels=1, kernel_size= 3, padding= "same", device= MODEL_DEVICE)
-        self.conv_sp_1 = nn.Conv2d(in_channels=2, out_channels=1, kernel_size= 3, padding= "same", device= MODEL_DEVICE)
-        self.conv_ch_2 = nn.Conv2d(in_channels=channel, out_channels=1, kernel_size= 3, padding= "same", device= MODEL_DEVICE)
+        self.conv_ch_1 = nn.Conv2d(in_channels=2, out_channels=1, kernel_size= k, padding= "same", device= MODEL_DEVICE)
+        self.conv_sp_1 = nn.Conv2d(in_channels=2, out_channels=1, kernel_size= k, padding= "same", device= MODEL_DEVICE)
+        self.conv_ch_2 = nn.Conv2d(in_channels=channel, out_channels=1, kernel_size= k, padding= "same", device= MODEL_DEVICE)
         self.elu1 = torch.nn.ELU()
         self.elu2 = torch.nn.ELU()
         self.sig1 = torch.nn.Sigmoid()
