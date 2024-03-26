@@ -647,15 +647,20 @@ def weights_init_classifier(m):
             nn.init.constant_(m.bias, 0.0)
 
 
-class EGA(torch.nn.Module):
+class GAT(torch.nn.Module):
     def __init__(self, channel):
-        super(EGAT, self).__init__()
+        super(GAT, self).__init__()
         self.avg_ch = torch.nn.AdaptiveAvgPool2d((1, 1))
         self.max_ch = torch.nn.AdaptiveMaxPool2d((1, 1))
         self.avg_sp = torch.nn.AdaptiveAvgPool1d(1)
         self.max_sp = torch.nn.AdaptiveMaxPool1d(1)
-        self.elu = torch.nn.ELU()
-        self.sig = torch.nn.Sigmoid()
+        self.conv_ch_1 = nn.Conv2d(in_channels=2, out_channels=1, kernel_size= 3, padding= "same", device= MODEL_DEVICE)
+        self.conv_sp_1 = nn.Conv2d(in_channels=2, out_channels=1, kernel_size= 3, padding= "same", device= MODEL_DEVICE)
+        self.conv_ch_2 = nn.Conv2d(in_channels=64, out_channels=1, kernel_size= 3, padding= "same", device= MODEL_DEVICE)
+        self.elu1 = torch.nn.ELU()
+        self.elu2 = torch.nn.ELU()
+        self.sig1 = torch.nn.Sigmoid()
+        self.sig2 = torch.nn.Sigmoid()
         # self.bn = torch.nn.BatchNorm2d(channel)
     def forward(self, x):
         # retrieve the size of the input
@@ -665,26 +670,20 @@ class EGA(torch.nn.Module):
         # channel-wise max pooling
         x12 = self.max_ch(x)
         # spatial average pooling
-        x21 = self.avg_sp(x.permute(-4, -1, -2, -3).reshape(b, h*w, -1))
+        x21 = self.avg_sp(x.permute(-4, -1, -2, -3).reshape(b, h*w, c)).reshape(b, h, w, -1)
         # spatial max pooling
-        x22 = self.max_sp(x.permute(-4, -1, -2, -3).reshape(b, h*w, -1))
+        x22 = self.max_sp(x.permute(-4, -1, -2, -3).reshape(b, h*w, c)).reshape(b, h, w, -1)
         # concating channel features
-        x11 = torch.cat([x11, x12], dim= -3)
+        x11 = torch.cat([x11, x12], dim= -1)
         # concating spatial features
-        x21 = torch.cat([x21, x22], dim= -2)
-        conv1 = torch.nn.Conv1d(c * 2, c, kernel_size= 8, padding= "same", device= MODEL_DEVICE)
-        x11 = conv1(x11.squeeze(-1))
-        conv2 = torch.nn.Conv1d(h * w * 2, h * w , kernel_size= 8 , padding= "same", device= MODEL_DEVICE)
-        x21 = conv2(x21).reshape(b, -1, h, w)
-        x11 = self.elu(x11)
-        x21 = self.elu(x21)
-        x11 = x11.unsqueeze(-1) * x + x21 * x
-        conv1d_c = torch.nn.Conv1d(in_channels= c, out_channels= c, kernel_size= 8 , padding= "same", device= MODEL_DEVICE)
-        x11 = conv1d_c(x11.permute(-4, -2, -1, -3).reshape(-1, c, h * w))
-        x11 = x11.view(b, c, h, w)
-        conv1d_hw = torch.nn.Conv1d(in_channels= h * w, out_channels=h * w, kernel_size= 8, padding= "same", device= MODEL_DEVICE)
-        x21 = conv1d_hw(x21.permute(-4, -1, -2, -3).reshape(-1, h * w, 1)).permute(0, 2, 1).reshape(b, 1, h, w)
-        return self.sig(x11) * x + self.sig(x21) * x
+        x21 = torch.cat([x21, x22], dim= -1)
+        x11 = self.conv_ch_1(x11.permute(-2, -1, -4, -3)).permute(-2, -1, -4, -3)
+        x21 = self.conv_sp_1(x21.permute(-4, -1, -3, -2))
+        out = (self.elu1(x11) * x + self.elu2(x21) * x)
+        x11 = self.conv_ch_2(out)
+        conv_layer = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=(h, w), device= MODEL_DEVICE)
+        x21 = conv_layer(out)
+        return self.sig1(x11) * x + self.sig2(x21) * x
 
 class BN2d(nn.Module):
     def __init__(self, planes):
@@ -713,11 +712,11 @@ class Baseline(nn.Module):
         self.base_4 = nn.Sequential(*list(self.base.children())[5:6])
         self.base_5 = nn.Sequential(*list(self.base.children())[6:])
 
-        self.att1 = EGAT(64)
-        self.att2 = EGAT(256)
-        self.att3 = EGAT(512)
-        self.att4 = EGAT(1024)
-        self.att5 = EGAT(2048)
+        self.att1 = GAT(64)
+        self.att2 = GAT(256)
+        self.att3 = GAT(512)
+        self.att4 = GAT(1024)
+        self.att5 = GAT(2048)
 
         self.BN1 = BN2d(64)
         self.BN2 = BN2d(256)
