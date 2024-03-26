@@ -656,7 +656,7 @@ class GAT(torch.nn.Module):
         self.max_sp = torch.nn.AdaptiveMaxPool1d(1)
         self.conv_ch_1 = nn.Conv2d(in_channels=2, out_channels=1, kernel_size= 3, padding= "same", device= MODEL_DEVICE)
         self.conv_sp_1 = nn.Conv2d(in_channels=2, out_channels=1, kernel_size= 3, padding= "same", device= MODEL_DEVICE)
-        self.conv_ch_2 = nn.Conv2d(in_channels=64, out_channels=1, kernel_size= 3, padding= "same", device= MODEL_DEVICE)
+        self.conv_ch_2 = nn.Conv2d(in_channels=channel, out_channels=1, kernel_size= 3, padding= "same", device= MODEL_DEVICE)
         self.elu1 = torch.nn.ELU()
         self.elu2 = torch.nn.ELU()
         self.sig1 = torch.nn.Sigmoid()
