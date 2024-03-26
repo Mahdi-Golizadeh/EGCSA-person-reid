@@ -679,11 +679,9 @@ class GAT(torch.nn.Module):
         x21 = torch.cat([x21, x22], dim= -1)
         x11 = self.conv_ch_1(x11.permute(-2, -1, -4, -3)).permute(-2, -1, -4, -3)
         x21 = self.conv_sp_1(x21.permute(-4, -1, -3, -2))
-        out = (self.elu1(x11) * x + self.elu2(x21) * x)
-        x11 = self.conv_ch_2(out)
-        conv_layer = nn.Conv2d(in_channels=c, out_channels=c, kernel_size=(h, w), device= MODEL_DEVICE)
-        x21 = conv_layer(out)
-        return self.sig1(x11) * x + self.sig2(x21) * x
+        out = x11  + self.elu2(x21) * x
+        out = self.conv_ch_2(out)
+        return self.sig1(out) * x
 
 class BN2d(nn.Module):
     def __init__(self, planes):
