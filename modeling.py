@@ -682,7 +682,7 @@ class GAT(torch.nn.Module):
         x21 = torch.cat([x21, x22], dim= -1)
         x11 = self.conv_ch_1(x11.permute(-2, -1, -4, -3)).permute(-2, -1, -4, -3)
         x21 = self.conv_sp_1(x21.permute(-4, -1, -3, -2))
-        out = x11  + self.elu2(x21) * x
+        out = x11  + self.sig2(x21) * x
         out1 = self.conv_ch_2(out)
         out2 = self.conv_sp_2(out)
         return self.sig1(out1) * x + out2
