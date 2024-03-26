@@ -659,6 +659,7 @@ class GAT(torch.nn.Module):
         self.conv_ch_1 = nn.Conv2d(in_channels=2, out_channels=1, kernel_size= k, padding= "same", device= MODEL_DEVICE)
         self.conv_sp_1 = nn.Conv2d(in_channels=2, out_channels=1, kernel_size= k, padding= "same", device= MODEL_DEVICE)
         self.conv_ch_2 = nn.Conv2d(in_channels=channel, out_channels=1, kernel_size= k, padding= "same", device= MODEL_DEVICE)
+        self.conv_sp_2 = nn.Conv2d(in_channels=channel, out_channels=1, kernel_size= k + 2, padding= "same", device= MODEL_DEVICE)
         self.elu1 = torch.nn.ELU()
         self.elu2 = torch.nn.ELU()
         self.sig1 = torch.nn.Sigmoid()
@@ -682,8 +683,9 @@ class GAT(torch.nn.Module):
         x11 = self.conv_ch_1(x11.permute(-2, -1, -4, -3)).permute(-2, -1, -4, -3)
         x21 = self.conv_sp_1(x21.permute(-4, -1, -3, -2))
         out = x11  + self.elu2(x21) * x
-        out = self.conv_ch_2(out)
-        return self.sig1(out) * x
+        out1 = self.conv_ch_2(out)
+        out2 = self.conv_sp_2(out)
+        return self.sig1(out1) * x + out2
 
 class BN2d(nn.Module):
     def __init__(self, planes):
