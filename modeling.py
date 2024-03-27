@@ -727,7 +727,7 @@ class GAT(nn.Module):
         out = x11 + self.elu2(x21) * x
         
         # Apply self-attention mechanism
-        out = out.permute(2, 0, 1, 3).reshape(w, b, -1)
+        out = out.permute(2, 0, 1, 3).reshape(w * h, b, -1)
         out, _ = self.self_attn(out, out, out)
         out = out.reshape(b, c, h, w).permute(1, 0, 2, 3)
         
