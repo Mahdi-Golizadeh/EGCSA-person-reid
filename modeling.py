@@ -647,47 +647,7 @@ def weights_init_classifier(m):
             nn.init.constant_(m.bias, 0.0)
 
 
-#class GAT(torch.nn.Module):
- #   def __init__(self, channel):
-  #      super(GAT, self).__init__()
-   #     t = int(abs(math.log(channel, 2) + 1) / 2)
-    #    k = t if t%2 else t+1
-     #   self.avg_ch = torch.nn.AdaptiveAvgPool2d((1, 1))
-      #  self.max_ch = torch.nn.AdaptiveMaxPool2d((1, 1))
-       # self.avg_sp = torch.nn.AdaptiveAvgPool1d(1)
-        #self.max_sp = torch.nn.AdaptiveMaxPool1d(1)
-    #     self.conv_ch_1 = nn.Conv2d(in_channels=2, out_channels=1, kernel_size= k, padding= "same", device= MODEL_DEVICE)
-    #     self.conv_sp_1 = nn.Conv2d(in_channels=2, out_channels=1, kernel_size= k, padding= "same", device= MODEL_DEVICE)
-    #     self.conv_ch_2 = nn.Conv2d(in_channels=channel, out_channels=1, kernel_size= k, padding= "same", device= MODEL_DEVICE)
-    #     self.conv_sp_2 = nn.Conv2d(in_channels=channel, out_channels=1, kernel_size= k + 2, padding= "same", device= MODEL_DEVICE)
-    #     self.elu1 = torch.nn.ELU()
-    #     self.elu2 = torch.nn.ELU()
-    #     self.sig1 = torch.nn.Sigmoid()
-    #     self.sig2 = torch.nn.Sigmoid()
-    #     # self.bn = torch.nn.BatchNorm2d(channel)
-    # def forward(self, x):
-    #     # retrieve the size of the input
-    #     b, c, h, w = x.size()
-    #     # channel-wise average pooling
-    #     x11 = self.avg_ch(x)
-    #     # channel-wise max pooling
-    #     x12 = self.max_ch(x)
-    #     # spatial average pooling
-    #     x21 = self.avg_sp(x.permute(-4, -1, -2, -3).reshape(b, h*w, c)).reshape(b, h, w, -1)
-    #     # spatial max pooling
-    #     x22 = self.max_sp(x.permute(-4, -1, -2, -3).reshape(b, h*w, c)).reshape(b, h, w, -1)
-    #     # concating channel features
-    #     x11 = torch.cat([x11, x12], dim= -1)
-    #     # concating spatial features
-    #     x21 = torch.cat([x21, x22], dim= -1)
-    #     x11 = self.conv_ch_1(x11.permute(-2, -1, -4, -3)).permute(-2, -1, -4, -3)
-    #     x21 = self.conv_sp_1(x21.permute(-4, -1, -3, -2))
-    #     out = x11  + self.elu2(x21) * x
-    #     out1 = self.conv_ch_2(out)
-    #     out2 = self.conv_sp_2(out)
-    #     return self.sig1(out1) * x + out2
-        
-class GAT(nn.Module):
+class GAT(torch.nn.Module):
     def __init__(self, channel):
         super(GAT, self).__init__()
         t = int(abs(math.log(channel, 2) + 1) / 2)
@@ -696,17 +656,15 @@ class GAT(nn.Module):
         self.max_ch = torch.nn.AdaptiveMaxPool2d((1, 1))
         self.avg_sp = torch.nn.AdaptiveAvgPool1d(1)
         self.max_sp = torch.nn.AdaptiveMaxPool1d(1)
-        self.conv_ch_1 = nn.Conv2d(in_channels=2, out_channels=1, kernel_size=k, padding="same", device=MODEL_DEVICE)
-        self.conv_sp_1 = nn.Conv2d(in_channels=2, out_channels=1, kernel_size=k, padding="same", device=MODEL_DEVICE)
-        self.conv_ch_2 = nn.Conv2d(in_channels=channel, out_channels=1, kernel_size=k, padding="same", device=MODEL_DEVICE)
-        self.conv_sp_2 = nn.Conv2d(in_channels=channel, out_channels=1, kernel_size=k + 2, padding="same", device=MODEL_DEVICE)
+        self.conv_ch_1 = nn.Conv2d(in_channels=2, out_channels=1, kernel_size= k, padding= "same", device= MODEL_DEVICE)
+        self.conv_sp_1 = nn.Conv2d(in_channels=2, out_channels=1, kernel_size= k, padding= "same", device= MODEL_DEVICE)
+        self.conv_ch_2 = nn.Conv2d(in_channels=channel, out_channels=1, kernel_size= k, padding= "same", device= MODEL_DEVICE)
+        self.conv_sp_2 = nn.Conv2d(in_channels=channel, out_channels=1, kernel_size= k + 2, padding= "same", device= MODEL_DEVICE)
         self.elu1 = torch.nn.ELU()
         self.elu2 = torch.nn.ELU()
         self.sig1 = torch.nn.Sigmoid()
         self.sig2 = torch.nn.Sigmoid()
-        self.self_attn = nn.MultiheadAttention(embed_dim=channel, num_heads=1)  # Self-attention mechanism
         # self.bn = torch.nn.BatchNorm2d(channel)
-
     def forward(self, x):
         # retrieve the size of the input
         b, c, h, w = x.size()
@@ -719,21 +677,63 @@ class GAT(nn.Module):
         # spatial max pooling
         x22 = self.max_sp(x.permute(-4, -1, -2, -3).reshape(b, h*w, c)).reshape(b, h, w, -1)
         # concating channel features
-        x11 = torch.cat([x11, x12], dim=-1)
+        x11 = torch.cat([x11, x12], dim= -1)
         # concating spatial features
-        x21 = torch.cat([x21, x22], dim=-1)
+        x21 = torch.cat([x21, x22], dim= -1)
         x11 = self.conv_ch_1(x11.permute(-2, -1, -4, -3)).permute(-2, -1, -4, -3)
         x21 = self.conv_sp_1(x21.permute(-4, -1, -3, -2))
-        out = x11 + self.elu2(x21) * x
-        
-        # Apply self-attention mechanism
-        out = out.permute(2, 0, 1, 3).reshape(w * h, b, -1)
-        out, _ = self.self_attn(out, out, out)
-        out = out.reshape(b, c, h, w).permute(1, 0, 2, 3)
-        
+        out = x11  + self.elu2(x21) * x
         out1 = self.conv_ch_2(out)
         out2 = self.conv_sp_2(out)
         return self.sig1(out1) * x + out2
+        
+# class GAT(nn.Module):
+#     def __init__(self, channel):
+#         super(GAT, self).__init__()
+#         t = int(abs(math.log(channel, 2) + 1) / 2)
+#         k = t if t%2 else t+1
+#         self.avg_ch = torch.nn.AdaptiveAvgPool2d((1, 1))
+#         self.max_ch = torch.nn.AdaptiveMaxPool2d((1, 1))
+#         self.avg_sp = torch.nn.AdaptiveAvgPool1d(1)
+#         self.max_sp = torch.nn.AdaptiveMaxPool1d(1)
+#         self.conv_ch_1 = nn.Conv2d(in_channels=2, out_channels=1, kernel_size=k, padding="same", device=MODEL_DEVICE)
+#         self.conv_sp_1 = nn.Conv2d(in_channels=2, out_channels=1, kernel_size=k, padding="same", device=MODEL_DEVICE)
+#         self.conv_ch_2 = nn.Conv2d(in_channels=channel, out_channels=1, kernel_size=k, padding="same", device=MODEL_DEVICE)
+#         self.conv_sp_2 = nn.Conv2d(in_channels=channel, out_channels=1, kernel_size=k + 2, padding="same", device=MODEL_DEVICE)
+#         self.elu1 = torch.nn.ELU()
+#         self.elu2 = torch.nn.ELU()
+#         self.sig1 = torch.nn.Sigmoid()
+#         self.sig2 = torch.nn.Sigmoid()
+#         self.self_attn = nn.MultiheadAttention(embed_dim=channel, num_heads=1)  # Self-attention mechanism
+#         # self.bn = torch.nn.BatchNorm2d(channel)
+
+#     def forward(self, x):
+#         # retrieve the size of the input
+#         b, c, h, w = x.size()
+#         # channel-wise average pooling
+#         x11 = self.avg_ch(x)
+#         # channel-wise max pooling
+#         x12 = self.max_ch(x)
+#         # spatial average pooling
+#         x21 = self.avg_sp(x.permute(-4, -1, -2, -3).reshape(b, h*w, c)).reshape(b, h, w, -1)
+#         # spatial max pooling
+#         x22 = self.max_sp(x.permute(-4, -1, -2, -3).reshape(b, h*w, c)).reshape(b, h, w, -1)
+#         # concating channel features
+#         x11 = torch.cat([x11, x12], dim=-1)
+#         # concating spatial features
+#         x21 = torch.cat([x21, x22], dim=-1)
+#         x11 = self.conv_ch_1(x11.permute(-2, -1, -4, -3)).permute(-2, -1, -4, -3)
+#         x21 = self.conv_sp_1(x21.permute(-4, -1, -3, -2))
+#         out = x11 + self.elu2(x21) * x
+        
+#         # Apply self-attention mechanism
+#         out = out.permute(2, 0, 1, 3).reshape(w * h, b, -1)
+#         out, _ = self.self_attn(out, out, out)
+#         out = out.reshape(b, c, h, w).permute(1, 0, 2, 3)
+        
+#         out1 = self.conv_ch_2(out)
+#         out2 = self.conv_sp_2(out)
+#         return self.sig1(out1) * x + out2
 
 
 class BN2d(nn.Module):
